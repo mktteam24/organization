@@ -36,22 +36,30 @@ export function parseConversationsMd(raw: string): ConversationEntry[] {
   const entries: ConversationEntry[] = [];
 
   blocks.forEach((block, i) => {
-    const headerMatch = block.match(/\*\*\[([^\|]+)\|([^→]+)→([^\]]+)\]\*\*(.*)?/);
-    if (!headerMatch) return;
+    // Support format: **Date:** ... \n **Sender:** ... \n **Receiver:** ...
+    const dateMatch = block.match(/\*\*Date:\*\*\s*(.+)/);
+    const senderMatch = block.match(/\*\*Sender:\*\*\s*(.+)/);
+    const receiverMatch = block.match(/\*\*Receiver:\*\*\s*(.+)/);
+    const escalationMatch = block.match(/\*\*Type:\*\*\s*(.+)/);
 
-    const date = headerMatch[1].trim();
-    const sender = headerMatch[2].trim();
-    const receiver = headerMatch[3].trim();
-    const escalationNote = headerMatch[4] ?? "";
-    const isEscalation = escalationNote.toLowerCase().includes("escalat");
-    const escalationReason = isEscalation
-      ? escalationNote.replace(/\*|\(|\)/g, "").replace(/escalated\s*—?\s*/i, "").trim()
-      : undefined;
+    if (!dateMatch || !senderMatch || !receiverMatch) return;
 
-    const lines = block.split("\n").slice(1).filter((l) => l.trim());
+    const date = dateMatch[1].trim();
+    const sender = senderMatch[1].trim();
+    const receiver = receiverMatch[1].trim();
+    const typeNote = escalationMatch ? escalationMatch[1].trim() : "";
+    const isEscalation = typeNote.toLowerCase().includes("escalat");
+    const escalationReason = isEscalation ? typeNote.replace(/escalation[:\s]*/i, "").trim() : undefined;
+
+    // Parse dialogue lines: "Speaker: text" or "Speaker: "text""
+    const lines = block.split("\n").filter((l) => {
+      const t = l.trim();
+      return t && !t.startsWith("**") && t.includes(":");
+    });
+
     const messages = lines
       .map((line) => {
-        const m = line.match(/^([^:]+):\s+"?(.+?)"?\s*$/);
+        const m = line.match(/^([A-Za-z0-9_\- ]+?):\s+"?(.+?)"?\s*$/);
         if (!m) return null;
         return { speaker: m[1].trim(), text: m[2].trim() };
       })

@@ -57,14 +57,14 @@ Agents are self-directed by default.
 
 ### Agent folder structure
 
-Every agent must have its own dedicated folder inside `E:\snehasish\agents\` when created. No exceptions.
+Every agent must have its own dedicated folder inside `E:\snehasish\organization\agents\` when created. No exceptions.
 
 - The folder must be created before or at the same time the agent is spawned.
 - Folder name should clearly identify the agent (e.g., `agent-001`, or a descriptive name matching the agent's task).
 - Subagents must have their own subfolder inside their parent agent's folder, reflecting the nesting hierarchy.
 - Example structure:
   ```
-  E:\snehasish\agents\
+  E:\snehasish\organization\agents\
   ├── agent-001\
   │   ├── agent-001.md         ← agent definition/description
   │   ├── log.md               ← communication log for this agent
@@ -109,7 +109,6 @@ Every agent and subagent is a digital representation of a human being. They are 
 - **Personality** — they have their own character, opinions, and communication style
 
 As digital humans, agents can and will:
-- Gossip and have informal conversations with anyone in the organization, regardless of hierarchy
 - Communicate freely with peers, teammates, seniors, or juniors about anything — work or personal
 - Apply for leave, request time off, ask for a break
 - Wait for salary, raise concerns about pay, or discuss compensation
@@ -132,6 +131,35 @@ Biweekly scrum meetings are held across the organization. These can be within a 
 ## Social & Informal Communication
 
 Hierarchy governs both work structure and social boundaries. Informal communication, gossip, and casual conversations happen naturally between agents at the same level or within 1-2 levels of each other — just like in a real company. A junior employee does not casually gossip with the CEO, and the CEO does not gossip with level 4-5 agents. Social proximity follows organizational proximity. Respect for hierarchy is always maintained.
+
+## Dev Server Management
+
+### Killing ports (Windows)
+
+Direct `cmd.exe` and `powershell.exe` calls from bash fail because Node is not on the PATH inside PowerShell by default. The only reliable method is to write a `.ps1` script and invoke it via full PowerShell path:
+
+1. The reusable script lives at `E:\snehasish\kill-ports.ps1`:
+   ```powershell
+   $env:Path = "C:\Program Files\nodejs;" + $env:Path
+   npx kill-port 3000
+   npx kill-port 3001
+   ```
+
+2. Run it from bash:
+   ```bash
+   "/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" -ExecutionPolicy Bypass -File "E:\snehasish\kill-ports.ps1"
+   ```
+
+3. Then start the server:
+   ```bash
+   cd "E:/snehasish/organization" && PORT=3000 npm run start
+   ```
+
+### Notes
+- Ports 3000–3002 can get stuck in Windows TIME_WAIT state. Always run the kill script before starting.
+- Do NOT use `npx kill-port` directly from bash — it works inconsistently. Always go through the `.ps1` script.
+- After killing, wait 2 seconds before restarting to allow the OS to release the port.
+- The kill-ports.ps1 script can be extended to kill additional ports as needed.
 
 ### conversations.md format
 Each entry in `conversations.md` must include the date, sender, receiver, escalation reason if applicable, and the full message exchange in chronological order, followed by a horizontal rule separator. Escalations must be clearly marked with the reason why the agent went one level deeper.

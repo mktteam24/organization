@@ -1,27 +1,58 @@
 "use client";
 
-import { useState } from "react";
-import { organizationData, totalAgentCount } from "@/lib/agentData";
+import { useState, useEffect, useRef } from "react";
 import { scrumMeetings } from "@/lib/scrumData";
 import { Agent, AgentStatus, AgentEmotion, AgentOverrides } from "@/lib/types";
 import { applyOverrides, getAncestorChain } from "@/lib/agentUtils";
 import AgentNode from "@/components/AgentNode";
 import AgentPanel from "@/components/AgentPanel";
 import ScrumPanel from "@/components/ScrumPanel";
+import ActivityFeed from "@/components/ActivityFeed";
 
 const AGENT_MIN = 1000;
 const AGENT_MAX = 1050;
+const POLL_INTERVAL = 3000;
 
 export default function Home() {
+  const [orgData, setOrgData] = useState<Agent | null>(null);
+  const [totalAgentCount, setTotalAgentCount] = useState(0);
   const [agentOverrides, setAgentOverrides] = useState<AgentOverrides>({});
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>("ceo");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>("CEO");
   const [panelOpen, setPanelOpen] = useState(true);
   const [scrumOpen, setScrumOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [feedOpen, setFeedOpen] = useState(true);
+  const overridesRef = useRef(agentOverrides);
+  overridesRef.current = agentOverrides;
 
-  const orgData = applyOverrides(organizationData, agentOverrides);
+  useEffect(() => {
+    let cancelled = false;
 
-  const selectedAgent = selectedAgentId ? findAgent(orgData, selectedAgentId) : null;
-  const ancestorChain = selectedAgent ? getAncestorChain(orgData, selectedAgent.id) : [];
+    const fetchOrg = () => {
+      fetch("/api/org-tree")
+        .then((r) => r.json())
+        .then((data) => {
+          if (!cancelled && data.root) {
+            setOrgData(data.root);
+            setTotalAgentCount(data.totalAgentCount ?? 0);
+            setLastUpdated(new Date());
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchOrg();
+    const timer = setInterval(fetchOrg, POLL_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  const displayData = orgData ? applyOverrides(orgData, agentOverrides) : null;
+  const selectedAgent = selectedAgentId && displayData ? findAgent(displayData, selectedAgentId) : null;
+  const ancestorChain = selectedAgent && displayData ? getAncestorChain(displayData, selectedAgent.id) : [];
 
   const handleSelectAgent = (agent: Agent) => {
     setSelectedAgentId(agent.id);
@@ -82,6 +113,13 @@ export default function Home() {
             )}
           </button>
 
+          {lastUpdated && (
+            <div className="text-right">
+              <div className="text-xs text-zinc-400">Last updated</div>
+              <div className="text-xs font-medium text-zinc-500">{lastUpdated.toLocaleTimeString()}</div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-medium text-emerald-600">Live</span>
@@ -93,11 +131,16 @@ export default function Home() {
       <div className="flex items-center gap-6 px-8 py-3 border-b border-slate-200 bg-white text-xs text-zinc-500 flex-wrap">
         <span className="font-medium text-zinc-600">Levels:</span>
         {[
-          { color: "border-yellow-400 bg-yellow-100", label: "Level 1" },
-          { color: "border-blue-400 bg-blue-100", label: "Level 2" },
-          { color: "border-purple-400 bg-purple-100", label: "Level 3" },
-          { color: "border-pink-400 bg-pink-100", label: "Level 4" },
-          { color: "border-emerald-400 bg-emerald-100", label: "Level 5" },
+          { color: "border-yellow-400 bg-yellow-100", label: "L1" },
+          { color: "border-blue-400 bg-blue-100", label: "L2" },
+          { color: "border-purple-400 bg-purple-100", label: "L3" },
+          { color: "border-pink-400 bg-pink-100", label: "L4" },
+          { color: "border-emerald-400 bg-emerald-100", label: "L5" },
+          { color: "border-teal-400 bg-teal-100", label: "L6" },
+          { color: "border-indigo-400 bg-indigo-100", label: "L7" },
+          { color: "border-rose-400 bg-rose-100", label: "L8" },
+          { color: "border-amber-400 bg-amber-100", label: "L9" },
+          { color: "border-cyan-400 bg-cyan-100", label: "L10" },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={`h-3 w-3 rounded border-2 ${color}`} />
@@ -119,25 +162,53 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Search */}
+      <div className="px-8 py-3 border-b border-slate-200 bg-white flex items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search agents by name or role..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-72 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery("")} className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
+            ✕ Clear
+          </button>
+        )}
+      </div>
+
       {/* Main Content */}
-      <div className="flex flex-1 gap-6 p-8 overflow-auto">
-        <div className="flex-1 flex flex-col items-center justify-start pt-8 overflow-hidden">
-          <AgentNode
-            agent={orgData}
-            selectedId={panelOpen ? selectedAgentId : null}
-            onClick={handleSelectAgent}
-          />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-start pt-8 p-8 overflow-auto">
+          {displayData ? (
+            <AgentNode
+              agent={displayData}
+              selectedId={panelOpen ? selectedAgentId : null}
+              onClick={handleSelectAgent}
+              searchQuery={searchQuery}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-3 mt-20 text-zinc-400">
+              <div className="h-8 w-8 rounded-full border-2 border-zinc-300 border-t-zinc-600 animate-spin" />
+              <span className="text-sm">Loading organization...</span>
+            </div>
+          )}
         </div>
 
         {selectedAgent && panelOpen && (
-          <AgentPanel
-            agent={selectedAgent}
-            ancestorChain={ancestorChain}
-            onClose={() => setPanelOpen(false)}
-            onStatusChange={handleStatusChange}
-            onEmotionChange={handleEmotionChange}
-          />
+          <div className="shrink-0 p-4 pl-0">
+            <AgentPanel
+              agent={selectedAgent}
+              ancestorChain={ancestorChain}
+              onClose={() => setPanelOpen(false)}
+              onStatusChange={handleStatusChange}
+              onEmotionChange={handleEmotionChange}
+            />
+          </div>
         )}
+
+        <ActivityFeed open={feedOpen} onToggle={() => setFeedOpen((v) => !v)} />
       </div>
 
       {/* Footer */}

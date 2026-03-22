@@ -3,14 +3,21 @@ import fs from "fs/promises";
 import path from "path";
 import { parseLogMd, parseConversationsMd } from "@/lib/agentFiles";
 
-const AGENTS_DIR = path.join("E:", "snehasish", "agents");
+const AGENTS_DIR = path.join(process.cwd(), "agents");
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   const { agentId } = await params;
-  const agentDir = path.join(AGENTS_DIR, agentId);
+  // agentId may be URL-encoded and contain slashes (e.g. "CEO%2FCTO")
+  const decoded = decodeURIComponent(agentId);
+  // Security: reject path traversal attempts
+  if (decoded.includes("..")) {
+    return NextResponse.json({ logs: [], conversations: [] });
+  }
+  const segments = decoded.split("/").filter(Boolean);
+  const agentDir = path.join(AGENTS_DIR, ...segments);
 
   const readFile = async (filename: string): Promise<string> => {
     try {

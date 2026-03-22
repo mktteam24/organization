@@ -53,7 +53,7 @@ export default function AgentPanel({ agent, ancestorChain, onClose, onStatusChan
   useEffect(() => {
     if (activeTab === "log" || activeTab === "conversations") {
       setLoading(true);
-      fetch(`/api/agent-data/${agent.id}`)
+      fetch(`/api/agent-data/${encodeURIComponent(agent.id)}`)
         .then((r) => r.json())
         .then((data) => {
           setLogs(data.logs ?? []);
