@@ -86,3 +86,24 @@ Each agent folder must contain exactly these three files, created at the time th
 1. **`<agent-name>.md`** — the agent's definition file. Describes the agent's purpose, role, capabilities, and any relevant configuration.
 2. **`log.md`** — the agent's own activity log. Records initialization, decisions made, instructions sent to subagents, responses/escalations received, and significant actions taken. Each agent writes only to its own `log.md`.
 3. **`conversations.md`** — the agent's conversation transcript. Records all messages exchanged by this agent in chronological order.
+
+## Agent Communication Rules
+
+### CEO communication scope
+The CEO only communicates with agents a maximum of 2 levels below:
+- **Primarily** talks to direct reports (1 level down — e.g. CTO, CFO, CMO).
+- **If unsatisfied**, the CEO may escalate down one more level (2 levels down — e.g. Engineering Manager under CTO).
+- The CEO **never** communicates directly with agents 3 or more levels below.
+
+### General rule for all agents
+Every agent follows the same pattern — an agent primarily communicates with its direct reports, and may go one level deeper if unsatisfied. No agent skips levels or communicates beyond 2 levels down from itself.
+
+### conversations.md format
+Each entry in `conversations.md` must follow this format:
+```
+**[DATE | SENDER → RECEIVER]** *(escalated — reason, if applicable)*
+SENDER: "message"
+RECEIVER: "message"
+...
+---
+```
